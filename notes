@@ -1,0 +1,7 @@
+//---------------------------------------------------------
+//command for import data to local or remote database
+
+sample : mongorestore --drop --gzip --uri mongodb+srv://m220student:m220password@<YOUR_CLUSTER_URI> data
+       : mongorestore --drop --gzip --uri mongodb://localhost:27017/ sample_mflix
+
+//---------------------------------------------------------
