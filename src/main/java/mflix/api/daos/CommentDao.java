@@ -1,15 +1,13 @@
 package mflix.api.daos;
 
 import com.mongodb.MongoClientSettings;
-import com.mongodb.MongoWriteException;
-import com.mongodb.ReadConcern;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import mflix.api.models.Comment;
 import mflix.api.models.Critic;
@@ -24,11 +22,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import static com.mongodb.client.model.Updates.set;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
@@ -79,9 +77,14 @@ public class CommentDao extends AbstractMFlixDao {
 
         // TODO> Ticket - Update User reviews: implement the functionality that enables adding a new
         // comment.
+        InsertOneResult result = commentCollection.withWriteConcern(WriteConcern.MAJORITY).insertOne(comment);
+        if (!result.wasAcknowledged()) {
+            throw new IncorrectDaoOperation("insert fails");
+        }
+
         // TODO> Ticket - Handling Errors: Implement a try catch block to
         // handle a potential write exception when given a wrong commentId.
-        return null;
+        return comment;
     }
 
     /**
@@ -101,6 +104,24 @@ public class CommentDao extends AbstractMFlixDao {
 
         // TODO> Ticket - Update User reviews: implement the functionality that enables updating an
         // user own comments
+        //filter
+        Bson matchQuery = Filters.and(
+                Filters.eq("_id", new ObjectId(commentId)),
+                Filters.eq("email", email)
+        );
+        //update
+        Bson setUpdate = Updates.combine(set("text", text),set("date", new Date()));
+
+        UpdateResult res = commentCollection.updateOne(matchQuery, setUpdate);
+        if(res.getMatchedCount() > 0){
+
+            if (res.getModifiedCount() != 1){
+                log.warn("Comment `{}` text was not updated. Is it the same text?");
+            }
+
+            return true;
+        }
+        log.error("Could not update comment `{}`. Make sure the comment is owned by `{}`", commentId, email);
         // TODO> Ticket - Handling Errors: Implement a try catch block to
         // handle a potential write exception when given a wrong commentId.
         return false;
@@ -117,9 +138,21 @@ public class CommentDao extends AbstractMFlixDao {
         // TODO> Ticket Delete Comments - Implement the method that enables the deletion of a user
         // comment
         // TIP: make sure to match only users that own the given commentId
+        Bson matchQuery = Filters.and(
+                Filters.eq("_id",new ObjectId(commentId)),
+                Filters.eq("email",email)
+        );
+        DeleteResult deleteResult = commentCollection.deleteOne(matchQuery);
+
+        if (deleteResult.getDeletedCount() != 1){
+            log.warn("Not able to delete comment `{}` for user `{}`. User" +
+                            " does not own comment or already deleted!",
+                    commentId, email);
+            return false;
+        }
         // TODO> Ticket Handling Errors - Implement a try catch block to
         // handle a potential write exception when given a wrong commentId.
-        return false;
+        return true;
     }
 
     /**
