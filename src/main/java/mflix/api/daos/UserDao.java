@@ -9,9 +9,9 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
-import com.mongodb.internal.operation.UpdateOperation;
 import mflix.api.models.Session;
 import mflix.api.models.User;
+import org.apache.commons.collections4.MapUtils;
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
@@ -26,7 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import static com.mongodb.client.model.Updates.*;
+import static com.mongodb.client.model.Updates.set;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
@@ -163,18 +163,30 @@ public class UserDao extends AbstractMFlixDao {
      * @return User object that just been updated.
      */
     public boolean updateUserPreferences(String email, Map<String, ?> userPreferences) {
+
         //TODO> Ticket: User Preferences - implement the method that allows for user preferences to
         // be updated.
-        String field = "preferences";
-        Bson userByEmailFilter = Filters.eq("email",email);
+        if(userPreferences == null){
+            throw new IncorrectDaoOperation(
+                    "userPreferences cannot be set to null");
+        }
 
-        List<Bson> updateQueryList = new LinkedList<Bson>();
-        for (Map.Entry<String, ?> up : userPreferences.entrySet()) {
-            updateQueryList.add(unset(field+"."+up.getKey()));
-            updateQueryList.add(set(field+"."+up.getKey(),up.getValue()));
+        //قبلی
+       /* String field = "preferences";
+        Bson userByEmailFilter = Filters.eq("email", email);
+
+        List<Bson> updateQueryList = new LinkedList<>();
+        if (MapUtils.isNotEmpty(userPreferences)) {
+            for (Map.Entry<String, ?> up : userPreferences.entrySet()) {
+                updateQueryList.add(set(field + "." + up.getKey(), up.getValue()));
+            }
         }
         //update
-        UpdateResult result = usersCollection.updateOne(userByEmailFilter,updateQueryList);
+        UpdateResult result = usersCollection.updateOne(userByEmailFilter, updateQueryList);
+        */
+        Bson userByEmailFilter = Filters.eq("email", email);
+        Bson updateQuery = Updates.set("preferences", userPreferences);
+        UpdateResult result = usersCollection.updateOne(userByEmailFilter,updateQuery);
 
         //TODO > Ticket: Handling Errors - make this method more robust by
         // handling potential exceptions when updating an entry.
