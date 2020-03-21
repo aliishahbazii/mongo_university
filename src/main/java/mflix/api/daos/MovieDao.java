@@ -32,7 +32,14 @@ public class MovieDao extends AbstractMFlixDao {
 
     @SuppressWarnings("unchecked")
     private Bson buildLookupStage() {
-        return null;
+        List<Variable<Object>> letList = new ArrayList<>();
+        letList.add(new Variable("id","$_id"));
+
+        List<Bson> lookUpPipelineList = new ArrayList<>();
+        lookUpPipelineList.add(Aggregates.match(Document.parse("{'$expr':{'$eq':['$movie_id','$$id']}}")));
+        lookUpPipelineList.add(Aggregates.sort(Sorts.descending("date")));
+
+        return Aggregates.lookup("comments",letList,lookUpPipelineList,"comments");
 
     }
 
@@ -67,6 +74,16 @@ public class MovieDao extends AbstractMFlixDao {
         Bson match = Aggregates.match(Filters.eq("_id", new ObjectId(movieId)));
         pipeline.add(match);
         // TODO> Ticket: Get Comments - implement the lookup stage that allows the comments to
+        //--------------------------------------------------
+        // LookUp
+        //--------------------------------------------------
+        //--------1------
+        pipeline.add(buildLookupStage());
+
+        //---------2-------
+        //doesnt have sort
+        //pipeline.add(Aggregates.lookup("comments","_id","movie_id","comments"));
+        //--------------------------------------------------
         // retrieved with Movies.
         Document movie = moviesCollection.aggregate(pipeline).first();
 
